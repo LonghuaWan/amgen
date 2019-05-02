@@ -1,4 +1,5 @@
 ---
+dbName: test
 packageName: base
 models:
   - name: User

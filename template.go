@@ -4,7 +4,7 @@
 // template/mgo.tmpl
 // DO NOT EDIT!
 
-package mgen
+package cmgen
 
 import (
 	"bytes"

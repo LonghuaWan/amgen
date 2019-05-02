@@ -1,4 +1,4 @@
-package mgen
+package cmgen
 
 import (
 	"html/template"
@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-//go:generate go-bindata -o ./template.go -pkg mgen ./template
+//go:generate go-bindata -o ./template.go -pkg cmgen ./template
 func InterfaceAction(context *cli.Context) error {
 	packageName := context.String("package")
 

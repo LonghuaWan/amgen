@@ -1,4 +1,4 @@
-package mgen
+package cmgen
 
 import "strings"
 

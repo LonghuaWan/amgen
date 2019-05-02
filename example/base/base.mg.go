@@ -5,22 +5,14 @@
 
 package base
 
-import (
-	"log"
-	"time"
-
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
-)
-
 //go:generate goimports -w base.mg.go
 var (
-	db *DB
+    db *DB
 )
 
 type DB struct {
-	name    string
-	session *mgo.Session
+    name    string
+    session *mgo.Session
 }
 
 func NewDB(name string) *DB {
@@ -55,132 +47,169 @@ func GetSessionAndGridFS(prefix string) (*mgo.Session, *mgo.GridFS) {
 	return s, f
 }
 
+
+      
 const (
-	CollectionUser = "users"
+    CollectionUser = "users"
 )
+    
 
 type User struct {
-	ID        bson.ObjectId `bson:"_id" json:"_id"`
-	UserName  string        `bson:"user_name" json:"user_name,omitempty"`
-	Email     string        `bson:"email" json:"email,omitempty"`
-	Password  string        `bson:"password" json:"password,omitempty"`
-	CreatedAt int64         `bson:"created_at" json:"created_at"`
-	UpdatedAt int64         `bson:"updated_at" json:"updated_at"`
+    ID bson.ObjectId `bson:"_id" json:"_id"`
+    UserName string `bson:"user_name" json:"user_name,omitempty"`
+    Email string `bson:"email" json:"email,omitempty"`
+    Password string `bson:"password" json:"password,omitempty"`
+    CreatedAt time.Time `bson:"created_at" json:"created_at"`
+    UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
-func NewUser() *User {
-	return &User{}
+func NewUser() *User{
+    return &User{}
 }
 
 func (user *User) Insert() error {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
+    
 
-	user.ID = bson.NewObjectId()
-	user.CreatedAt = time.Now().UTC().Unix()
+    user.ID = bson.NewObjectId()
+    user.CreatedAt = time.Now().UTC()
 
-	return c.Insert(user)
+    return c.Insert(user)
 }
 
-func UpdateUserByID(id string, user *User) error {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+func UpdateUserByID(id interface{}, user *User) error {
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user.UpdatedAt = time.Now().UTC().Unix()
+    user.UpdatedAt = time.Now().UTC()
 
-	return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-		"$set": user,
-	})
+    switch id := id.(type) {
+    case bson.ObjectId:
+        return c.UpdateId(id, bson.M{
+            "$set": user,
+        })
+    case string:
+        return c.UpdateId(bson.ObjectIdHex(id), bson.M{
+            "$set": user,
+        })
+    }
+
+    return errors.New("no bson.ObjectId")
 }
 
 func UpdateUser(selector interface{}, user *User) error {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user.UpdatedAt = time.Now().UTC().Unix()
+    user.UpdatedAt = time.Now().UTC()
 
-	return c.Update(selector, bson.M{
-		"$set": user,
-	})
+    return c.Update(selector, bson.M{
+        "$set": user,
+    })
 }
 
 func UpdateUserAll(selector interface{}, user *User) (*mgo.ChangeInfo, error) {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user.UpdatedAt = time.Now().UTC().Unix()
+    user.UpdatedAt = time.Now().UTC()
 
-	return c.UpdateAll(selector, bson.M{
-		"$set": user,
-	})
+    return c.UpdateAll(selector, bson.M{
+        "$set": user,
+    })
 }
 
-func FindUserByID(id string) (*User, error) {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+func FindUserByID(id interface{}) (*User, error) {
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user := new(User)
+    user := new(User)
 
-	if bson.IsObjectIdHex(id) {
-		return user, c.FindId(id).One(user)
-	}
+    switch id := id.(type) {
+    case bson.ObjectId:
+    	return user, c.FindId(id).One(user)
+    case string:
+    	return user, c.FindId(bson.ObjectIdHex(id)).One(user)
+    }
 
-	return user, c.FindId(bson.ObjectIdHex(id)).One(user)
+    return nil, errors.New("no bson.ObjectId")
 }
 
 func FindUserByQuery(query interface{}) (*User, error) {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user := new(User)
+    user := new(User)
 
-	return user, c.Find(query).One(user)
+    return user, c.Find(query).One(user)
 }
 
 func FindAllUserByQuery(query interface{}) ([]*User, error) {
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
+
+    user := make([]*User, 0)
+
+    return user, c.Find(query).All(&user)
+}
+
+func FindUserByFormQuery(fields *storage.Query) ([]*User, error) {
 	s, c := GetSessionAndCollection(CollectionUser)
 	defer s.Close()
 
-	user := make([]*User, 0)
+	query := c.Find(fields.Search)
 
-	return user, c.Find(query).All(&user)
+	if len(fields.Sort) != 0 {
+		query.Sort(fields.Sort...)
+	}
+
+	 user := make([]*User, 0)
+
+	return user, query.Skip(fields.Skip + (fields.Page * fields.Limt)).
+		Limit(fields.Limt).
+		All(&user)
 }
 
 func ExistUserByID(id string) (bool, error) {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user := new(User)
+    user := new(User)
 
-	if err := c.FindId(bson.ObjectIdHex(id)).One(user); err != nil {
-		if err == mgo.ErrNotFound {
-			return false, nil
-		}
-		return false, err
-	}
+    if err := c.FindId(bson.ObjectIdHex(id)).One(user); err != nil {
+        if err == mgo.ErrNotFound {
+            return false, nil
+        }
+        return false, err
+    }
 
-	return true, nil
+    return true, nil
 }
 
 func ExistUserByQuery(query interface{}) (bool, error) {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	user := new(User)
+    user := new(User)
 
-	if err := c.Find(query).One(user); err != nil {
-		if err == mgo.ErrNotFound {
-			return false, nil
-		}
-		return false, err
-	}
+    if err := c.Find(query).One(user); err != nil {
+        if err == mgo.ErrNotFound {
+            return false, nil
+        }
+        return false, err
+    }
 
-	return true, nil
+    return true, nil
 }
 
 func DeleteUserByID(id string) error {
-	s, c := GetSessionAndCollection(CollectionUser)
-	defer s.Close()
+    s, c := GetSessionAndCollection(CollectionUser)
+    defer s.Close()
 
-	return c.RemoveId(bson.ObjectIdHex(id))
+    return c.RemoveId(bson.ObjectIdHex(id))
 }
+
+
+
+

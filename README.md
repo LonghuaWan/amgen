@@ -1,11 +1,11 @@
-## mgen
+## cmgen
 
 golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码
 
 ## 安装
 
 ```bash
-go get -u github.com/yakumioto/mgen/mgen
+go get -u github.com/chxfantasy/cmgen/cmgen
 ```
 
 ## 使用
@@ -52,7 +52,7 @@ OPTIONS:
 
 根据所传入的配置文件生成对应的 CRUD package.
 
-example: `mgen mgo -c xxx.yaml`
+example: `cmgen mgo -c xxx.yaml`
 
 会在执行命令会在当前文件夹下生成一个 `xxx.mg.go` 的文件.
 
