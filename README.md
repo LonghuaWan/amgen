@@ -1,6 +1,6 @@
 ## cmgen
 
-golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码。forked from [https://github.com/yakumioto/mgen](https://github.com/yakumioto/mgen)
+golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码。forked from <https://github.com/yakumioto/mgen>
 
 ## 安装
 
@@ -115,3 +115,5 @@ models:
 The MongoDB driver for Go <https://github.com/globalsign/mgo>
 
 Package of validators and sanitizers for strings, numerics, slices and structs <https://github.com/asaskevich/govalidator>
+
+forked from <https://github.com/yakumioto/mgen>
