@@ -1,38 +1,14 @@
 ## cmgen
 
-golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码
+golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码。forked from [https://github.com/yakumioto/mgen](https://github.com/yakumioto/mgen)
 
 ## 安装
 
 ```bash
-go get -u github.com/chxfantasy/cmgen/cmgen
+go install github.com/chxfantasy/cmgen/cmgen
 ```
 
 ## 使用
-
-安装: `go get golang.org/x/tools/cmd/goimports`
-
-注: **本程序并不会自动添加所引入的包, 需使用 `goimports` 工具来自动添加包. **
-
-生成的文件中包含了 `//go:generate goimports -w` 所以执行 `go generate -x` 来添加包.
-
-### interface command
-
-```text
-NAME:
-   flag interface - create model interface go file
-
-USAGE:
-   flag interface [command options] [arguments...]
-
-OPTIONS:
-   --package value, -p value  set interface file package name
-   --help, -h                 show help (default: false)
-```
-
-会在当前目录下生成一个 `model.mg.go` 的文件. 内容如下. [model.mg.go](/example/interface/model.mg.go)
-
-主要生成一个 Connect 的方法, 可以用来连接同一个 `Host` 下的多个数据库.
 
 ### mgo command
 
@@ -90,6 +66,20 @@ models:
 - ExistUserByID(id string) (bool, error)
 - ExistUserByQuery(query interface{}) (bool, error)
 - DeleteUserByID(id string) error
+
+### 说明
+1. 自动生成的Model代码中，引入了以下包。如有需要，请自行更改。
+
+```go
+import (
+    "errors"
+    "github.com/globalsign/mgo"
+    "github.com/globalsign/mgo/bson"
+    "github.com/liamylian/jsontime"
+    "time"
+)
+```
+2. init函数中，需要自行初始化MongoSession
 
 #### 进阶用法
 
