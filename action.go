@@ -29,7 +29,7 @@ func MgoAction(context *cli.Context) error {
 		return err
 	}
 
-	response, err := http.Get("https://github.com/chxfantasy/cmgen/blob/master/template/cmgo.tmpl")
+	response, err := http.Get("https://raw.githubusercontent.com/chxfantasy/cmgen/master/template/cmgo.tmpl")
 	if err != nil {
 		log.Fatal(err)
 		return err
