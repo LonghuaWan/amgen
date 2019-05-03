@@ -58,28 +58,30 @@ models:
 - NewUser() *User
 - (user *User) Insert() error
 - UpdateUserByID(id string, user *User) error
+- UpdateUserByIDAndEntityMap(id interface{}, updateMap map[string]interface{}) error
 - UpdateUser(selector interface{}, user *User) error
 - UpdateUserAll(selector interface{}, user *User) (*mgo.ChangeInfo, error)
-- FindUserByID(id string) (*User, error)
-- FindUserByQuery(query interface{}) (*User, error)
-- FindAllUserByQuery(query interface{}) ([]*User, error)
+- GetUserByID(id string) (*User, error)
+- GetOneUserByQuery(query map[string]interface{}) (*User, error)
+- ListAllUserByQuery(query map[string]interface{}) ([]*User, error)
 - ExistUserByID(id string) (bool, error)
 - ExistUserByQuery(query interface{}) (bool, error)
 - DeleteUserByID(id string) error
 
 ### 说明
-1. 自动生成的Model代码中，引入了以下包。如有需要，请自行更改。
-
-```go
-import (
-    "errors"
-    "github.com/globalsign/mgo"
-    "github.com/globalsign/mgo/bson"
-    "github.com/liamylian/jsontime"
-    "time"
-)
-```
-2. init函数中，需要自行初始化MongoSession
+1. 代码中会自动插入CreatedAt、UpdatedAt、deleted，所有的删除均为逻辑删除
+2. 自动生成的Model代码中，引入了以下包。如有需要，请自行更改。
+    ```go
+    import (
+        "errors"
+        "github.com/globalsign/mgo"
+        "github.com/globalsign/mgo/bson"
+        "github.com/liamylian/jsontime"
+        "time"
+    )
+    ```
+    
+3. init函数中，需要自行初始化MongoSession
 
 #### 进阶用法
 
