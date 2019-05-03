@@ -1,6 +1,6 @@
 ---
-dbName: test
 packageName: base
+dbName: test
 models:
   - name: User
     collectionName: users

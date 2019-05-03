@@ -5,10 +5,25 @@
 
 package {{.PackageName}}
 
-var (
-    dbName = $Model.dbName
-    ErrorInvalidObjectId = errors.New("invalid objectId")
+import (
+    "errors"
+    "github.com/globalsign/mgo"
+    "github.com/globalsign/mgo/bson"
+    "github.com/liamylian/jsontime"
+    "time"
 )
+
+var (
+    dbName = "{{.DbName}}"
+    ErrorInvalidObjectId = errors.New("invalid objectId")
+    json = jsontime.ConfigWithCustomTimeFormat
+    MongoSession *mgo.Session
+)
+
+func init() {
+    //FIXME  Here to init MongoSession
+    MongoSession = new(mgo.Session)
+}
 
   {{range $_, $Model := .Models}}  {{$name := $Model.Name|ToLower}}{{$Name := $Model.Name}}  {{if .CollectionName}}
 const (
@@ -44,17 +59,17 @@ func Check{{$Name}}States(status string) bool {
 }  {{end}}
 
 func GetSessionAndCollection(collection string) (*mgo.Session, *mgo.Collection) {
-	s := db.session.Copy()
+	s := MongoSession.Copy()
 	c := s.DB(dbName).C(collection)
 
 	return s, c
 }
 
 type {{$Name}} struct {
-    ID bson.ObjectId `bson:"_id" json:"_id"`{{range $Model.Fields}}
+    ID bson.ObjectId `bson:"_id" json:"id"`{{range $Model.Fields}}
     {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}}" json:"{{.Name|SnakeString}},omitempty"{{if .Valid}} valid:"{{.Valid}}"{{end}}`{{end}}
-    CreatedAt time.Time `bson:"created_at" json:"created_at"`
-    UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+    CreatedAt time.Time `bson:"created_at" json:"created_at" time_format:"2006-01-02 15:04:05"`
+    UpdatedAt time.Time `bson:"updated_at" json:"updated_at" time_format:"2006-01-02 15:04:05"`
     Deleted int `bson:"deleted" json:"-"`
 }
 
@@ -116,14 +131,14 @@ func Update{{$Name}}ByIDAndEntityMap(id interface{}, updateMap map[string]interf
     switch id := id.(type) {
     case bson.ObjectId:
         return c.UpdateId(id, bson.M{
-            "$set": {{$name}},
+            "$set": updateMap,
         })
     case string:
         if !bson.IsObjectIdHex(id) {
             return ErrorInvalidObjectId
         }
         return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-            "$set": {{$name}},
+            "$set": updateMap,
         })
     }
 

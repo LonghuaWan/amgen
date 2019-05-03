@@ -1,42 +1,17 @@
 package cmgen
 
 import (
+	"gopkg.in/urfave/cli.v2"
 	"html/template"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"strings"
 
-	"gopkg.in/urfave/cli.v2"
 	"gopkg.in/yaml.v2"
 )
-
-//go:generate go-bindata -o ./template.go -pkg cmgen ./template
-func InterfaceAction(context *cli.Context) error {
-	packageName := context.String("package")
-
-	t, err := template.New("interface").Parse(string(MustAsset("template/interface.tmpl")))
-	if err != nil {
-		log.Fatalf("[ERROR] parse template files error: %s\n", err)
-	}
-
-	filename := "model.mg.go"
-	fp, err := os.Create(filename)
-	if err != nil {
-		log.Fatalf("[ERROR] create model.go error: %s\n", err)
-	}
-	defer fp.Close()
-
-	mg := new(ModelGenerator)
-	mg.PackageName = packageName
-	mg.FileName = filename
-	if err := t.Execute(fp, mg); err != nil {
-		log.Fatalf("[ERROR] execute template error: %s\n", err)
-	}
-
-	return nil
-}
 
 func MgoAction(context *cli.Context) error {
 	configPath := context.String("config-file")
@@ -44,20 +19,36 @@ func MgoAction(context *cli.Context) error {
 	bytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("[ERROR] read config file error: %s\n", err)
+		return err
 	}
 
 	mg := new(ModelGenerator)
 	mg.ConfigName = path.Base(configPath)
 	if err := yaml.Unmarshal(bytes, mg); err != nil {
 		log.Fatalf("[ERROR] unmarshal yaml error: %s\n", err)
+		return err
 	}
 
-	t, err := template.New("mgo").Funcs(template.FuncMap{
+	response, err := http.Get("https://github.com/chxfantasy/cmgen/blob/master/template/cmgo.tmpl")
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	defer response.Body.Close()
+
+	tmpBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatalf("[ERROR] unmarshal yaml error: %s\n", err)
+		return err
+	}
+
+	t, err := template.New("cmgo").Funcs(template.FuncMap{
 		"ToLower":     strings.ToLower,
 		"SnakeString": SnakeString,
-	}).Parse(string(MustAsset("template/mgo.tmpl")))
+	}).Parse(string(tmpBytes))
 	if err != nil {
 		log.Fatalf("[ERROR] parse template files error: %s\n", err)
+		return err
 	}
 
 	filename := strings.Replace(configPath, path.Ext(configPath), ".mg.go", 1)
@@ -65,11 +56,13 @@ func MgoAction(context *cli.Context) error {
 	fp, err := os.Create(filename)
 	if err != nil {
 		log.Fatalf("[ERROR] create %s error: %s\n", filename, err)
+		return err
 	}
 	defer fp.Close()
 
 	if err := t.Execute(fp, mg); err != nil {
 		log.Fatalf("[ERROR] execute template error: %s\n", err)
+		return err
 	}
 
 	return nil
