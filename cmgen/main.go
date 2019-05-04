@@ -1,13 +1,13 @@
 package main
 
 import (
-	"os"
-
 	"github.com/chxfantasy/cmgen"
 	"gopkg.in/urfave/cli.v2"
+	"os"
 )
 
 func main() {
+
 	app := &cli.App{
 		Name:  "cmgen",
 		Usage: "code generate for mgo",

@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -29,23 +28,16 @@ func MgoAction(context *cli.Context) error {
 		return err
 	}
 
-	response, err := http.Get("https://raw.githubusercontent.com/chxfantasy/cmgen/master/template/cmgo.tmpl")
+	response, err := TemplateBoxes.FindString("cmgo.tmpl")
 	if err != nil {
 		log.Fatal(err)
-		return err
-	}
-	defer response.Body.Close()
-
-	tmpBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatalf("[ERROR] unmarshal yaml error: %s\n", err)
 		return err
 	}
 
 	t, err := template.New("cmgo").Funcs(template.FuncMap{
 		"ToLower":     strings.ToLower,
 		"SnakeString": SnakeString,
-	}).Parse(string(tmpBytes))
+	}).Parse(response)
 	if err != nil {
 		log.Fatalf("[ERROR] parse template files error: %s\n", err)
 		return err

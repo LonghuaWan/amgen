@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-go generate -x
+packr2
 go install github.com/chxfantasy/cmgen/cmgen
