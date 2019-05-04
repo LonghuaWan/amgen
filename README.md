@@ -82,6 +82,8 @@ models:
     ```
     
 3. init函数中，需要自行初始化MongoSession
+4. tmpl文件，使用<https://github.com/gobuffalo/packr> 打包到二进制文件中
+5. 本地修改的tmpl文件，需要执行packr2，自动将文件内容打包到二进制包中。或者直接运行./rebuild.sh
 
 #### 进阶用法
 
