@@ -13,26 +13,21 @@ import (
 )
 
 var (
-    dbName = "test"
     ErrorInvalidObjectId = errors.New("invalid objectId")
     json = jsontime.ConfigWithCustomTimeFormat
-    MongoSession *mgo.Session
 )
-
-func init() {
-    //FIXME  Here to init MongoSession
-    MongoSession = new(mgo.Session)
-}
 
       
 const (
+    DbNameUser = "test"
     CollectionUser = "users"
 )
     
 
-func GetSessionAndCollection(collection string) (*mgo.Session, *mgo.Collection) {
+func GetUserSessionAndCollection() (*mgo.Session, *mgo.Collection) {
+    //FIXME init MongoSession
 	s := MongoSession.Copy()
-	c := s.DB(dbName).C(collection)
+	c := s.DB(DbNameUser).C(CollectionUser)
 
 	return s, c
 }
@@ -52,7 +47,7 @@ func NewUser() *User{
 }
 
 func (user *User) Insert() error {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
     
     if err := c.EnsureIndex(mgo.Index{
@@ -81,7 +76,7 @@ func (user *User) Insert() error {
 }
 
 func UpdateUserByID(id interface{}, user *User) error {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user.UpdatedAt = time.Now()
@@ -104,7 +99,7 @@ func UpdateUserByID(id interface{}, user *User) error {
 }
 
 func UpdateUserByIDAndEntityMap(id interface{}, updateMap map[string]interface{}) error {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     if updateMap == nil { return nil }
@@ -139,7 +134,7 @@ func UpdateUserByIDAndEntityMap(id interface{}, updateMap map[string]interface{}
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
 func UpdateUser(selector interface{}, user *User) error {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user.UpdatedAt = time.Now()
@@ -162,7 +157,7 @@ func UpdateUser(selector interface{}, user *User) error {
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
 func UpdateUserAll(selector interface{}, user *User) (*mgo.ChangeInfo, error) {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user.UpdatedAt = time.Now()
@@ -173,7 +168,7 @@ func UpdateUserAll(selector interface{}, user *User) (*mgo.ChangeInfo, error) {
 }
 
 func GetUserByID(id interface{}) (*User, error) {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user := new(User)
@@ -194,7 +189,7 @@ func GetUserByID(id interface{}) (*User, error) {
 }
 
 func GetOneUserByQuery(query map[string]interface{}) (*User, error) {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -210,7 +205,7 @@ func GetOneUserByQuery(query map[string]interface{}) (*User, error) {
 }
 
 func ListAllUserByQuery(query map[string]interface{}) ([]*User, error) {
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -226,7 +221,7 @@ func ExistUserByID(id string) (bool, error) {
         return false, ErrorInvalidObjectId
     }
 
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user := new(User)
@@ -245,10 +240,13 @@ func DeleteUserByID(id string) error {
     if !bson.IsObjectIdHex(id) {
         return ErrorInvalidObjectId
     }
-    s, c := GetSessionAndCollection(CollectionUser)
+    s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     return c.UpdateId(bson.ObjectIdHex(id), bson.M{
         "$set": bson.M{"deleted": 1},
     })
 }
+
+
+

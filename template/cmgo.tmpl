@@ -13,19 +13,13 @@ import (
 )
 
 var (
-    dbName = "{{.DbName}}"
     ErrorInvalidObjectId = errors.New("invalid objectId")
     json = jsontime.ConfigWithCustomTimeFormat
-    MongoSession *mgo.Session
 )
-
-func init() {
-    //FIXME  Here to init MongoSession
-    MongoSession = new(mgo.Session)
-}
 
   {{range $_, $Model := .Models}}  {{$name := $Model.Name|ToLower}}{{$Name := $Model.Name}}  {{if .CollectionName}}
 const (
+    DbName{{$Name}} = "{{$.DbName}}"
     Collection{{$Model.Name}} = "{{$Model.CollectionName}}"
 )
   {{if $Model.Types}}
@@ -57,9 +51,10 @@ func Check{{$Name}}States(status string) bool {
     return {{$Name}}StatesMap[status] != ""
 }  {{end}}
 
-func GetSessionAndCollection(collection string) (*mgo.Session, *mgo.Collection) {
+func Get{{$Name}}SessionAndCollection() (*mgo.Session, *mgo.Collection) {
+    //FIXME init MongoSession
 	s := MongoSession.Copy()
-	c := s.DB(dbName).C(collection)
+	c := s.DB(DbName{{$Name}}).C(Collection{{$Model.Name}})
 
 	return s, c
 }
@@ -77,7 +72,7 @@ func New{{$Name}}() *{{$Name}}{
 }
 
 func ({{$name}} *{{$Name}}) Insert() error {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
     {{range $Model.Fields}}{{if .Unique }}
     if err := c.EnsureIndex(mgo.Index{
@@ -98,7 +93,7 @@ func ({{$name}} *{{$Name}}) Insert() error {
 }
 
 func Update{{$Name}}ByID(id interface{}, {{$name}} *{{$Name}}) error {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}}.UpdatedAt = time.Now()
@@ -121,7 +116,7 @@ func Update{{$Name}}ByID(id interface{}, {{$name}} *{{$Name}}) error {
 }
 
 func Update{{$Name}}ByIDAndEntityMap(id interface{}, updateMap map[string]interface{}) error {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     if updateMap == nil { return nil }
@@ -156,7 +151,7 @@ func Update{{$Name}}ByIDAndEntityMap(id interface{}, updateMap map[string]interf
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
 func Update{{$Name}}(selector interface{}, {{$name}} *{{$Name}}) error {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}}.UpdatedAt = time.Now()
@@ -179,7 +174,7 @@ func Update{{$Name}}(selector interface{}, {{$name}} *{{$Name}}) error {
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
 func Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.ChangeInfo, error) {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}}.UpdatedAt = time.Now()
@@ -190,7 +185,7 @@ func Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.Change
 }
 
 func Get{{$Name}}ByID(id interface{}) (*{{$Name}}, error) {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}} := new({{$Name}})
@@ -211,7 +206,7 @@ func Get{{$Name}}ByID(id interface{}) (*{{$Name}}, error) {
 }
 
 func GetOne{{$Name}}ByQuery(query map[string]interface{}) (*{{$Name}}, error) {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -227,7 +222,7 @@ func GetOne{{$Name}}ByQuery(query map[string]interface{}) (*{{$Name}}, error) {
 }
 
 func ListAll{{$Name}}ByQuery(query map[string]interface{}) ([]*{{$Name}}, error) {
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -243,7 +238,7 @@ func Exist{{$Name}}ByID(id string) (bool, error) {
         return false, ErrorInvalidObjectId
     }
 
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}} := new({{$Name}})
@@ -262,7 +257,7 @@ func Delete{{$Name}}ByID(id string) error {
     if !bson.IsObjectIdHex(id) {
         return ErrorInvalidObjectId
     }
-    s, c := GetSessionAndCollection(Collection{{$Model.Name}})
+    s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     return c.UpdateId(bson.ObjectIdHex(id), bson.M{
