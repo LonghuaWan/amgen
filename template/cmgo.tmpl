@@ -62,8 +62,8 @@ func Get{{$Name}}SessionAndCollection() (*mgo.Session, *mgo.Collection) {
 type {{$Name}} struct {
     ID bson.ObjectId `bson:"_id" json:"id"`{{range $Model.Fields}}
     {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}}" json:"{{.Name|SnakeString}},omitempty"{{if .Valid}} valid:"{{.Valid}}"{{end}}`{{end}}
-    CreatedAt time.Time `bson:"created_at" json:"created_at" time_format:"2006-01-02 15:04:05"`
-    UpdatedAt time.Time `bson:"updated_at" json:"updated_at" time_format:"2006-01-02 15:04:05"`
+    Ct int64 `bson:"ct" json:"ct"`
+    Mt int64 `bson:"mt" json:"mt"`
     Deleted int `bson:"deleted" json:"-"`
 }
 
@@ -85,58 +85,34 @@ func ({{$name}} *{{$Name}}) Insert() error {
     }{{end}}{{end}}
 
     {{$name}}.ID = bson.NewObjectId()
-    {{$name}}.CreatedAt = time.Now()
-    {{$name}}.UpdatedAt = time.Now()
+    {{$name}}.Ct = time.Now().UnixNano()
+    {{$name}}.Mt = time.Now().UnixNano()
     {{$name}}.Deleted = 0
 
     return c.Insert({{$name}})
 }
 
-func Update{{$Name}}ByID(id interface{}, {{$name}} *{{$Name}}) error {
+func Update{{$Name}}ByID(id bson.ObjectId, {{$name}} *{{$Name}}) error {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
-    {{$name}}.UpdatedAt = time.Now()
+    {{$name}}.Mt = time.Now().UnixNano()
 
-    switch id := id.(type) {
-    case bson.ObjectId:
-        return c.UpdateId(id, bson.M{
-            "$set": {{$name}},
-        })
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return ErrorInvalidObjectId
-        }
-        return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-            "$set": {{$name}},
-        })
-    }
-
-    return errors.New("no bson.ObjectId")
+    return c.UpdateId(id, bson.M{
+        "$set": {{$name}},
+    })
 }
 
-func Update{{$Name}}ByIDAndEntityMap(id interface{}, updateMap map[string]interface{}) error {
+func Update{{$Name}}ByIDAndEntityMap(id bson.ObjectId, updateMap map[string]interface{}) error {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     if updateMap == nil { return nil }
-    updateMap["updated_at"] = time.Now()
+    updateMap ["mt"] = time.Now().UnixNano()
 
-    switch id := id.(type) {
-    case bson.ObjectId:
-        return c.UpdateId(id, bson.M{
-            "$set": updateMap,
-        })
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return ErrorInvalidObjectId
-        }
-        return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-            "$set": updateMap,
-        })
-    }
-
-    return errors.New("no bson.ObjectId")
+    return c.UpdateId(id, bson.M{
+        "$set": updateMap,
+    })
 }
 
 // Update finds a single document matching the provided selector document
@@ -154,7 +130,7 @@ func Update{{$Name}}(selector interface{}, {{$name}} *{{$Name}}) error {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
-    {{$name}}.UpdatedAt = time.Now()
+    {{$name}}.Mt = time.Now().UnixNano()
 
     return c.Update(selector, bson.M{
         "$set": {{$name}},
@@ -177,28 +153,19 @@ func Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.Change
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
-    {{$name}}.UpdatedAt = time.Now()
+    {{$name}}.Mt = time.Now().UnixNano()
 
     return c.UpdateAll(selector, bson.M{
         "$set": {{$name}},
     })
 }
 
-func Get{{$Name}}ByID(id interface{}) (*{{$Name}}, error) {
+func Get{{$Name}}ByID(id bson.ObjectId) (*{{$Name}}, error) {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}} := new({{$Name}})
-    var err error
-    switch id := id.(type) {
-    case bson.ObjectId:
-    	err = c.FindId(id).One({{$name}})
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return nil, ErrorInvalidObjectId
-        }
-    	err = c.FindId(bson.ObjectIdHex(id)).One({{$name}})
-    }
+    err := c.FindId(id).One({{$name}})
     if err == mgo.ErrNotFound {
         return nil, nil
     }
@@ -233,17 +200,40 @@ func ListAll{{$Name}}ByQuery(query map[string]interface{}) ([]*{{$Name}}, error)
     return {{$name}}, c.Find(query).All(&{{$name}})
 }
 
-func Exist{{$Name}}ByID(id string) (bool, error) {
-    if !bson.IsObjectIdHex(id) {
-        return false, ErrorInvalidObjectId
-    }
+func ListAll{{$Name}}ByQueryWithOffsetAndLimit(query map[string]interface{}, offset, limit int) ([]*{{$Name}}, error) {
+    s, c := Get{{$Name}}SessionAndCollection()
+    defer s.Close()
 
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := make([]*{{$Name}}, 0)
+
+    return {{$name}}, c.Find(query).Skip(offset).Limit(limit).All(&{{$name}})
+}
+
+func ListAll{{$Name}}ByQueryWithOrder(query map[string]interface{}, offset, limit int, order... string) ([]*{{$Name}}, error) {
+    s, c := Get{{$Name}}SessionAndCollection()
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := make([]*{{$Name}}, 0)
+    tmp := c.Find(query)
+    if len(order) > 0 {
+        tmp = tmp.Sort(order...)
+    }
+    return {{$name}}, tmp.Skip(offset).Limit(limit).All(&{{$name}})
+}
+
+func Exist{{$Name}}ByID(id bson.ObjectId) (bool, error) {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
     {{$name}} := new({{$Name}})
 
-    if err := c.FindId(bson.ObjectIdHex(id)).One({{$name}}); err != nil {
+    if err := c.FindId(id).One({{$name}}); err != nil {
         if err == mgo.ErrNotFound {
             return false, nil
         }
@@ -253,14 +243,11 @@ func Exist{{$Name}}ByID(id string) (bool, error) {
     return true, nil
 }
 
-func Delete{{$Name}}ByID(id string) error {
-    if !bson.IsObjectIdHex(id) {
-        return ErrorInvalidObjectId
-    }
+func Delete{{$Name}}ByID(id bson.ObjectId) error {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
 
-    return c.UpdateId(bson.ObjectIdHex(id), bson.M{
+    return c.UpdateId(id, bson.M{
         "$set": bson.M{"deleted": 1},
     })
 }

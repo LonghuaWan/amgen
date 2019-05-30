@@ -37,8 +37,8 @@ type User struct {
     UserName string `bson:"user_name" json:"user_name,omitempty" valid:"required~first name is blank"`
     Email string `bson:"email" json:"email,omitempty" valid:"required,email"`
     Password string `bson:"password" json:"password,omitempty" valid:"required"`
-    CreatedAt time.Time `bson:"created_at" json:"created_at" time_format:"2006-01-02 15:04:05"`
-    UpdatedAt time.Time `bson:"updated_at" json:"updated_at" time_format:"2006-01-02 15:04:05"`
+    Ct int64 `bson:"ct" json:"ct"`
+    Mt int64 `bson:"mt" json:"mt"`
     Deleted int `bson:"deleted" json:"-"`
 }
 
@@ -68,58 +68,34 @@ func (user *User) Insert() error {
     }
 
     user.ID = bson.NewObjectId()
-    user.CreatedAt = time.Now()
-    user.UpdatedAt = time.Now()
+    user.Ct = time.Now().UnixNano()
+    user.Mt = time.Now().UnixNano()
     user.Deleted = 0
 
     return c.Insert(user)
 }
 
-func UpdateUserByID(id interface{}, user *User) error {
+func UpdateUserByID(id bson.ObjectId, user *User) error {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
-    user.UpdatedAt = time.Now()
+    user.Mt = time.Now().UnixNano()
 
-    switch id := id.(type) {
-    case bson.ObjectId:
-        return c.UpdateId(id, bson.M{
-            "$set": user,
-        })
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return ErrorInvalidObjectId
-        }
-        return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-            "$set": user,
-        })
-    }
-
-    return errors.New("no bson.ObjectId")
+    return c.UpdateId(id, bson.M{
+        "$set": user,
+    })
 }
 
-func UpdateUserByIDAndEntityMap(id interface{}, updateMap map[string]interface{}) error {
+func UpdateUserByIDAndEntityMap(id bson.ObjectId, updateMap map[string]interface{}) error {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     if updateMap == nil { return nil }
-    updateMap["updated_at"] = time.Now()
+    updateMap ["mt"] = time.Now().UnixNano()
 
-    switch id := id.(type) {
-    case bson.ObjectId:
-        return c.UpdateId(id, bson.M{
-            "$set": updateMap,
-        })
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return ErrorInvalidObjectId
-        }
-        return c.UpdateId(bson.ObjectIdHex(id), bson.M{
-            "$set": updateMap,
-        })
-    }
-
-    return errors.New("no bson.ObjectId")
+    return c.UpdateId(id, bson.M{
+        "$set": updateMap,
+    })
 }
 
 // Update finds a single document matching the provided selector document
@@ -137,7 +113,7 @@ func UpdateUser(selector interface{}, user *User) error {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
-    user.UpdatedAt = time.Now()
+    user.Mt = time.Now().UnixNano()
 
     return c.Update(selector, bson.M{
         "$set": user,
@@ -160,28 +136,19 @@ func UpdateUserAll(selector interface{}, user *User) (*mgo.ChangeInfo, error) {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
-    user.UpdatedAt = time.Now()
+    user.Mt = time.Now().UnixNano()
 
     return c.UpdateAll(selector, bson.M{
         "$set": user,
     })
 }
 
-func GetUserByID(id interface{}) (*User, error) {
+func GetUserByID(id bson.ObjectId) (*User, error) {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user := new(User)
-    var err error
-    switch id := id.(type) {
-    case bson.ObjectId:
-    	err = c.FindId(id).One(user)
-    case string:
-        if !bson.IsObjectIdHex(id) {
-            return nil, ErrorInvalidObjectId
-        }
-    	err = c.FindId(bson.ObjectIdHex(id)).One(user)
-    }
+    err := c.FindId(id).One(user)
     if err == mgo.ErrNotFound {
         return nil, nil
     }
@@ -216,17 +183,40 @@ func ListAllUserByQuery(query map[string]interface{}) ([]*User, error) {
     return user, c.Find(query).All(&user)
 }
 
-func ExistUserByID(id string) (bool, error) {
-    if !bson.IsObjectIdHex(id) {
-        return false, ErrorInvalidObjectId
-    }
+func ListAllUserByQueryWithOffsetAndLimit(query map[string]interface{}, offset, limit int) ([]*User, error) {
+    s, c := GetUserSessionAndCollection()
+    defer s.Close()
 
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    user := make([]*User, 0)
+
+    return user, c.Find(query).Skip(offset).Limit(limit).All(&user)
+}
+
+func ListAllUserByQueryWithOrder(query map[string]interface{}, offset, limit int, order... string) ([]*User, error) {
+    s, c := GetUserSessionAndCollection()
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    user := make([]*User, 0)
+    tmp := c.Find(query)
+    if len(order) > 0 {
+        tmp = tmp.Sort(order...)
+    }
+    return user, tmp.Skip(offset).Limit(limit).All(&user)
+}
+
+func ExistUserByID(id bson.ObjectId) (bool, error) {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
     user := new(User)
 
-    if err := c.FindId(bson.ObjectIdHex(id)).One(user); err != nil {
+    if err := c.FindId(id).One(user); err != nil {
         if err == mgo.ErrNotFound {
             return false, nil
         }
@@ -236,14 +226,11 @@ func ExistUserByID(id string) (bool, error) {
     return true, nil
 }
 
-func DeleteUserByID(id string) error {
-    if !bson.IsObjectIdHex(id) {
-        return ErrorInvalidObjectId
-    }
+func DeleteUserByID(id bson.ObjectId) error {
     s, c := GetUserSessionAndCollection()
     defer s.Close()
 
-    return c.UpdateId(bson.ObjectIdHex(id), bson.M{
+    return c.UpdateId(id, bson.M{
         "$set": bson.M{"deleted": 1},
     })
 }
