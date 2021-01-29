@@ -16,7 +16,7 @@ type Model struct {
 	Types          []string `yaml:"types,omitempty"`
 	States         []string `yaml:"states,omitempty"`
 	Fields         []Field  `yaml:"fields,omitempty"`
-	Indexs         []Index `yaml:"indexs,omitempty"`
+	Indexes         []Index `yaml:"indexes,omitempty"`
 }
 
 type Index struct {
