@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/chxfantasy/cmgen"
+	"github.com/cage1993/amgen"
 	"gopkg.in/urfave/cli.v2"
 	"os"
 )
