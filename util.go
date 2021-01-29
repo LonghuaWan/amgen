@@ -1,4 +1,4 @@
-package cmgen
+package amgen
 
 import "strings"
 

@@ -3,6 +3,6 @@
 
 // You can use the "packr clean" command to clean up this,
 // and any other packr generated files.
-package cmgen
+package amgen
 
 import _ "github.com/chxfantasy/cmgen/packrd"

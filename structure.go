@@ -1,4 +1,4 @@
-package cmgen
+package amgen
 
 type ModelGenerator struct {
 	ConfigName  string  `yaml:"-"`

@@ -1,4 +1,4 @@
-package cmgen
+package amgen
 
 import "github.com/gobuffalo/packr/v2"
 
