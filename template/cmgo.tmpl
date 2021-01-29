@@ -77,7 +77,7 @@ func New{{$Name}}() *{{$Name}}{
 func Init{{$Name}}Index() error {
     s, c := Get{{$Name}}SessionAndCollection()
     defer s.Close()
-    {{range $Model.indexes}}{{if .Unique }}
+    {{range $Model.Indexes}}{{if .Unique }}
     if err := c.EnsureIndex(mgo.Index{
         Key: func() []string{
             keys := []string{}
