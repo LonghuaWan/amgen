@@ -9,7 +9,7 @@ import (
 func main() {
 
 	app := &cli.App{
-		Name:  "cmgen",
+		Name:  "amgen",
 		Usage: "code generate for mgo",
 		Commands: []*cli.Command{
 			//{Name: "interface", Usage: "create model interface go file", Flags: defaultInterfaceFlag(), Action: cmgen.InterfaceAction},
