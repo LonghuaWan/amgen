@@ -13,7 +13,7 @@ func main() {
 		Usage: "code generate for mgo",
 		Commands: []*cli.Command{
 			//{Name: "interface", Usage: "create model interface go file", Flags: defaultInterfaceFlag(), Action: cmgen.InterfaceAction},
-			{Name: "mgo", Usage: "generate golang code", Flags: defaultModelFlag(), Action: cmgen.MgoAction},
+			{Name: "mgo", Usage: "generate golang code", Flags: defaultModelFlag(), Action: amgen.MgoAction},
 		},
 		Version: "0.1.0",
 	}

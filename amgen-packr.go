@@ -5,4 +5,4 @@
 // and any other packr generated files.
 package amgen
 
-import _ "github.com/chxfantasy/cmgen/packrd"
+import _ "github.com/cage1993/amgen/packrd"

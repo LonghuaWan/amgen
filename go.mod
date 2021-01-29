@@ -1,8 +1,9 @@
-module github.com/chxfantasy/cmgen
+module github.com/cage1993/amgen
 
 go 1.12
 
 require (
+	github.com/chxfantasy/cmgen v0.0.0-20190530091417-a3a3ab850a27
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/gobuffalo/genny v0.0.0-20190403191548-3ca520ef0d9e // indirect
 	github.com/gobuffalo/packr v1.30.1 // indirect
