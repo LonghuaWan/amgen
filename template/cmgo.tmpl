@@ -8,7 +8,6 @@ import (
     "errors"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-    "github.com/liamylian/jsontime"
     "time"
 )
 
@@ -18,8 +17,6 @@ const (
 )
 
 var (
-    ErrorInvalidObjectId = errors.New("invalid objectId")
-    json = jsontime.ConfigWithCustomTimeFormat
     DbName{{$Name}} string
 )
 
