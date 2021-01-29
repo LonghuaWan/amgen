@@ -5,7 +5,7 @@ golang mgo 代码自动生成器, 生成对 mongodb 的 CRUD 操作代码。fork
 ## 安装
 
 ```bash
-go install github.com/chxfantasy/cmgen/cmgen
+go install github.com/cage1993/amgen/amgen
 ```
 
 ## 使用
