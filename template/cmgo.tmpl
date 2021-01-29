@@ -6,8 +6,8 @@ package {{.PackageName}}
 
 import (
     "errors"
-    "github.com/globalsign/mgo"
-    "github.com/globalsign/mgo/bson"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
     "github.com/liamylian/jsontime"
     "time"
 )
@@ -15,7 +15,32 @@ import (
 var (
     ErrorInvalidObjectId = errors.New("invalid objectId")
     json = jsontime.ConfigWithCustomTimeFormat
+    db *DB
 )
+
+type DB struct {
+    name    string
+    session *mgo.Session
+}
+
+func NewDB(name string) *DB {
+	if db == nil {
+		db = &DB{
+			name: name,
+		}
+	}
+
+	return db
+}
+
+func (db *DB) InitDB(session *mgo.Session) {
+	if session == nil {
+		log.Fatalf("[FATAL] you must connect database\n")
+	}
+	db.session = session
+
+	log.Printf("[INFO] %v connection succeeded\n", db.name)
+}
 
   {{range $_, $Model := .Models}}  {{$name := $Model.Name|ToLower}}{{$Name := $Model.Name}}  {{if .CollectionName}}
 const (
