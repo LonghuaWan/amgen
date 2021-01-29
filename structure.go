@@ -16,6 +16,12 @@ type Model struct {
 	Types          []string `yaml:"types,omitempty"`
 	States         []string `yaml:"states,omitempty"`
 	Fields         []Field  `yaml:"fields,omitempty"`
+	Indexs      []Index `yaml:"indexs,omitempty"`
+}
+
+type Index struct {
+	Name   []string `yaml:"name,omitempty"`
+	Unique bool   `yaml:"unique,omitempty"`
 }
 
 type Field struct {
