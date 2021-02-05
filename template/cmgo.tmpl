@@ -6,7 +6,7 @@
 package {{.PackageName}}
 
 import (
-    "errors"
+    "context"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
     "time"
@@ -54,11 +54,9 @@ func Check{{$Name}}States(status string) bool {
     return {{$Name}}StatesMap[status] != ""
 }  {{end}}
 
-func Get{{$Name}}SessionAndCollection() (*mgo.Session, *mgo.Collection) {
-    //FIXME init MongoSession
-	s := MongoSession.Copy()
-	c := s.DB(DbName{{$Name}}).C(Collection{{$Model.Name}})
-
+func (d *dao) Get{{$Name}}SessionAndCollection(collectionName string) (*mgo.Session, *mgo.Collection) {
+	s := d.mongo.Copy()
+	c := s.DB(DbName{{$Name}}).C(collectionName)
 	return s, c
 }
 
@@ -68,14 +66,20 @@ type {{$Name}} struct {
     Ct int64 `bson:"ct" json:"ct"`
     Mt int64 `bson:"mt" json:"mt"`
     Deleted int `bson:"deleted" json:"-"`
+    CollectionName string `bson:"-" json:"-"` //指定表名
 }
 
 func New{{$Name}}() *{{$Name}}{
-    return &{{$Name}}{}
+    return &{{$Name}}{CollectionName: Collection{{$Model.Name}}}
 }
 
-func Init{{$Name}}Index() error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (t *{{$Name}}) GetCollectionName() string {
+    return t.CollectionName
+}
+
+{{if $Model.Indexes}}
+func (d *dao) Init{{$Name}}Index(collectionName string) error {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
     {{range $Model.Indexes}}{{if .Unique }}
     if err := c.EnsureIndex(mgo.Index{
@@ -108,9 +112,10 @@ func Init{{$Name}}Index() error {
 
     return nil
 }
+{{end}}
 
-func ({{$name}} *{{$Name}}) Insert() error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Insert(ctx context.Context, {{$name}} *{{$Name}}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection({{$name}}.GetCollectionName())
     defer s.Close()
 
     {{$name}}.ID = bson.NewObjectId()
@@ -121,8 +126,8 @@ func ({{$name}} *{{$Name}}) Insert() error {
     return c.Insert({{$name}})
 }
 
-func Update{{$Name}}ByID(id bson.ObjectId, {{$name}} *{{$Name}}) error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Update{{$Name}}ByID(ctx context.Context, id bson.ObjectId, {{$name}} *{{$Name}}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection({{$name}}.GetCollectionName())
     defer s.Close()
 
     {{$name}}.Mt = time.Now().UnixNano()
@@ -132,8 +137,8 @@ func Update{{$Name}}ByID(id bson.ObjectId, {{$name}} *{{$Name}}) error {
     })
 }
 
-func Update{{$Name}}ByIDAndEntityMap(id bson.ObjectId, updateMap map[string]interface{}) error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Update{{$Name}}ByIDAndEntityMap(ctx context.Context, collectionName string, id bson.ObjectId, updateMap map[string]interface{}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     if updateMap == nil { return nil }
@@ -155,8 +160,8 @@ func Update{{$Name}}ByIDAndEntityMap(id bson.ObjectId, updateMap map[string]inte
 //     http://www.mongodb.org/display/DOCS/Updating
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
-func Update{{$Name}}(selector interface{}, {{$name}} *{{$Name}}) error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Update{{$Name}}(ctx context.Context, selector interface{}, {{$name}} *{{$Name}}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection({{$name}}.GetCollectionName())
     defer s.Close()
 
     {{$name}}.Mt = time.Now().UnixNano()
@@ -178,8 +183,8 @@ func Update{{$Name}}(selector interface{}, {{$name}} *{{$Name}}) error {
 //     http://www.mongodb.org/display/DOCS/Updating
 //     http://www.mongodb.org/display/DOCS/Atomic+Operations
 //
-func Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.ChangeInfo, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.ChangeInfo, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection({{$name}}.GetCollectionName())
     defer s.Close()
 
     {{$name}}.Mt = time.Now().UnixNano()
@@ -189,8 +194,8 @@ func Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*mgo.Change
     })
 }
 
-func Get{{$Name}}ByID(id bson.ObjectId) (*{{$Name}}, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Get{{$Name}}ByID(ctx context.Context, collectionName string, id bson.ObjectId) (*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     {{$name}} := new({{$Name}})
@@ -201,8 +206,8 @@ func Get{{$Name}}ByID(id bson.ObjectId) (*{{$Name}}, error) {
     return {{$name}}, nil
 }
 
-func GetOne{{$Name}}ByQuery(query map[string]interface{}) (*{{$Name}}, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) GetOne{{$Name}}ByQuery(ctx context.Context, collectionName string, query map[string]interface{}) (*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -217,8 +222,8 @@ func GetOne{{$Name}}ByQuery(query map[string]interface{}) (*{{$Name}}, error) {
     return {{$name}}, nil
 }
 
-func ListAll{{$Name}}ByQuery(query map[string]interface{}) ([]*{{$Name}}, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) ListAll{{$Name}}ByQuery(ctx context.Context, collectionName string, query map[string]interface{}) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -229,8 +234,8 @@ func ListAll{{$Name}}ByQuery(query map[string]interface{}) ([]*{{$Name}}, error)
     return {{$name}}, c.Find(query).All(&{{$name}})
 }
 
-func ListAll{{$Name}}ByQueryWithOffsetAndLimit(query map[string]interface{}, offset, limit int) ([]*{{$Name}}, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) ListAll{{$Name}}ByQueryWithOffsetAndLimit(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -241,8 +246,8 @@ func ListAll{{$Name}}ByQueryWithOffsetAndLimit(query map[string]interface{}, off
     return {{$name}}, c.Find(query).Skip(offset).Limit(limit).All(&{{$name}})
 }
 
-func ListAll{{$Name}}ByQueryWithOrder(query map[string]interface{}, offset, limit int, order... string) ([]*{{$Name}}, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) ListAll{{$Name}}ByQueryWithOrder(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int, order... string) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     if query == nil { query = map[string]interface{}{} }
@@ -256,8 +261,8 @@ func ListAll{{$Name}}ByQueryWithOrder(query map[string]interface{}, offset, limi
     return {{$name}}, tmp.Skip(offset).Limit(limit).All(&{{$name}})
 }
 
-func Exist{{$Name}}ByID(id bson.ObjectId) (bool, error) {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Exist{{$Name}}ByID(ctx context.Context, collectionName string, id bson.ObjectId) (bool, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     {{$name}} := new({{$Name}})
@@ -272,8 +277,8 @@ func Exist{{$Name}}ByID(id bson.ObjectId) (bool, error) {
     return true, nil
 }
 
-func Delete{{$Name}}ByID(id bson.ObjectId) error {
-    s, c := Get{{$Name}}SessionAndCollection()
+func (d *dao) Delete{{$Name}}ByID(ctx context.Context, collectionName string, id bson.ObjectId) error {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     return c.UpdateId(id, bson.M{

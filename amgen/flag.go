@@ -19,5 +19,11 @@ func defaultModelFlag() []cli.Flag {
 			Aliases: []string{"c"},
 			Usage:   "set the config file path",
 		},
+		&cli.StringFlag{
+			Name:    "config-file-path",
+			Aliases: []string{"r"},
+			Usage:   "set the config file path",
+		},
 	}
 }
+
