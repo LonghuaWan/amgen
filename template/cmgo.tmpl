@@ -14,16 +14,8 @@ import (
 
   {{range $_, $Model := .Models}}  {{$name := $Model.Name|ToLower}}{{$Name := $Model.Name}}  {{if .CollectionName}}
 const (
-    Collection{{$Model.Name}} = "{{$Model.CollectionName}}"
+    Collection{{$Model.Name}} = "{{$Model.CollectionName|SnakeString}}"
 )
-
-var (
-    DbName{{$Name}} string
-)
-
-func InitDbName{{$Name}}(dbName string) {
-    DbName{{$Name}} = dbName
-}
 
   {{if $Model.Types}}
 const ({{range $Model.Types}}
@@ -55,14 +47,15 @@ func Check{{$Name}}States(status string) bool {
 }  {{end}}
 
 func (d *dao) Get{{$Name}}SessionAndCollection(collectionName string) (*mgo.Session, *mgo.Collection) {
-	s := d.mongo.Copy()
-	c := s.DB(DbName{{$Name}}).C(collectionName)
+	s := d.mongo.Clone()
+	c := s.DB(MongodbDBName).C(collectionName)
 	return s, c
 }
 
 type {{$Name}} struct {
-    ID bson.ObjectId `bson:"_id" json:"id"`{{range $Model.Fields}}
-    {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}}" json:"{{.Name|SnakeString}},omitempty"{{if .Valid}} valid:"{{.Valid}}"{{end}}`{{end}}
+    ID bson.ObjectId `bson:"_id" json:"id"`{{range $Model.Fields}}{{if not .Anonymous}}
+    {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}}" json:"{{.Name|SnakeString}},omitempty"{{if .Valid}} valid:"{{.Valid}}"{{end}}` {{ else }}
+    {{.Type}} {{end}}{{end}}
     Ct int64 `bson:"ct" json:"ct"`
     Mt int64 `bson:"mt" json:"mt"`
     Deleted int `bson:"deleted" json:"-"`
@@ -109,12 +102,20 @@ func (d *dao) Init{{$Name}}Index(collectionName string) error {
         return err
     }{{end}}{{end}}
 
+    if err := c.EnsureIndex(mgo.Index{
+        Key: []string{"Ct"},
+        Unique:     false,
+        DropDups:   false,
+        Background: true,
+    }); err != nil {
+        return err
+    }
 
     return nil
 }
 {{end}}
 
-func (d *dao) Insert(ctx context.Context, {{$name}} *{{$Name}}) error {
+func (d *dao) Insert{{$Name}}(ctx context.Context, {{$name}} *{{$Name}}) error {
     s, c := d.Get{{$Name}}SessionAndCollection({{$name}}.GetCollectionName())
     defer s.Close()
 
@@ -194,12 +195,36 @@ func (d *dao) Update{{$Name}}All(selector interface{}, {{$name}} *{{$Name}}) (*m
     })
 }
 
+func (d *dao) Update{{$Name}}ByEntityMap(ctx context.Context, collectionName string, selector interface{}, updateMap map[string]interface{}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    if updateMap == nil { return nil }
+    updateMap ["mt"] = time.Now().UnixNano()
+
+    return c.Update(selector, bson.M{
+        "$set": updateMap,
+    })
+}
+
 func (d *dao) Get{{$Name}}ByID(ctx context.Context, collectionName string, id bson.ObjectId) (*{{$Name}}, error) {
     s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     {{$name}} := new({{$Name}})
     err := c.FindId(id).One({{$name}})
+    if err == mgo.ErrNotFound {
+        return nil, nil
+    }
+    return {{$name}}, nil
+}
+
+func (d *dao) Get{{$Name}}ByIDWithSelect(ctx context.Context, collectionName string, selector interface{}, id bson.ObjectId) (*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    {{$name}} := new({{$Name}})
+    err := c.FindId(id).Select(selector).One({{$name}})
     if err == mgo.ErrNotFound {
         return nil, nil
     }
@@ -222,6 +247,22 @@ func (d *dao) GetOne{{$Name}}ByQuery(ctx context.Context, collectionName string,
     return {{$name}}, nil
 }
 
+func (d *dao) GetOne{{$Name}}ByQueryWithSelect(ctx context.Context, collectionName string, selector interface{}, query map[string]interface{}) (*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := new({{$Name}})
+
+    err := c.Find(query).Select(selector).One({{$name}})
+    if err == mgo.ErrNotFound {
+        return nil, nil
+    }
+    return {{$name}}, nil
+}
+
 func (d *dao) ListAll{{$Name}}ByQuery(ctx context.Context, collectionName string, query map[string]interface{}) ([]*{{$Name}}, error) {
     s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
@@ -234,6 +275,18 @@ func (d *dao) ListAll{{$Name}}ByQuery(ctx context.Context, collectionName string
     return {{$name}}, c.Find(query).All(&{{$name}})
 }
 
+func (d *dao) ListAll{{$Name}}ByQueryWithSelect(ctx context.Context, collectionName string, selector interface{}, query map[string]interface{}) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := make([]*{{$Name}}, 0)
+
+    return {{$name}}, c.Find(query).Select(selector).All(&{{$name}})
+}
+
 func (d *dao) ListAll{{$Name}}ByQueryWithOffsetAndLimit(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int) ([]*{{$Name}}, error) {
     s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
@@ -244,6 +297,18 @@ func (d *dao) ListAll{{$Name}}ByQueryWithOffsetAndLimit(ctx context.Context, col
     {{$name}} := make([]*{{$Name}}, 0)
 
     return {{$name}}, c.Find(query).Skip(offset).Limit(limit).All(&{{$name}})
+}
+
+func (d *dao) ListAll{{$Name}}ByQueryWithOffsetAndLimitAndSelect(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int, selector interface{}) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := make([]*{{$Name}}, 0)
+
+    return {{$name}}, c.Find(query).Select(selector).Skip(offset).Limit(limit).All(&{{$name}})
 }
 
 func (d *dao) ListAll{{$Name}}ByQueryWithOrder(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int, order... string) ([]*{{$Name}}, error) {
@@ -261,13 +326,45 @@ func (d *dao) ListAll{{$Name}}ByQueryWithOrder(ctx context.Context, collectionNa
     return {{$name}}, tmp.Skip(offset).Limit(limit).All(&{{$name}})
 }
 
+func (d *dao) ListAll{{$Name}}ByQueryWithOrderAndSelect(ctx context.Context, collectionName string, query map[string]interface{}, offset, limit int, selector interface{}, order... string) ([]*{{$Name}}, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    if query == nil { query = map[string]interface{}{} }
+    query["deleted"] = 0
+
+    {{$name}} := make([]*{{$Name}}, 0)
+    tmp := c.Find(query)
+    if len(order) > 0 {
+        tmp = tmp.Sort(order...)
+    }
+    return {{$name}}, tmp.Select(selector).Skip(offset).Limit(limit).All(&{{$name}})
+}
+
+
 func (d *dao) Exist{{$Name}}ByID(ctx context.Context, collectionName string, id bson.ObjectId) (bool, error) {
     s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
     defer s.Close()
 
     {{$name}} := new({{$Name}})
 
-    if err := c.FindId(id).One({{$name}}); err != nil {
+    if err := c.FindId(id).Select(bson.M{"_id":1}).One({{$name}}); err != nil {
+        if err == mgo.ErrNotFound {
+            return false, nil
+        }
+        return false, err
+    }
+
+    return true, nil
+}
+
+func (d *dao) Exist{{$Name}}ByQuery(ctx context.Context, collectionName string, query map[string]interface{}) (bool, error) {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    {{$name}} := new({{$Name}})
+
+    if err := c.Find(query).Select(bson.M{"_id":1}).One({{$name}}); err != nil {
         if err == mgo.ErrNotFound {
             return false, nil
         }
@@ -286,9 +383,23 @@ func (d *dao) Delete{{$Name}}ByID(ctx context.Context, collectionName string, id
     })
 }
 
+func (d *dao) Inc{{$Name}}ByEntityMap(ctx context.Context, collectionName string, selector interface{}, incMap map[string]interface{}) error {
+    s, c := d.Get{{$Name}}SessionAndCollection(collectionName)
+    defer s.Close()
+
+    updateMap := map[string]interface{}{}
+    updateMap ["mt"] = time.Now().UnixNano()
+
+    return c.Update(selector, bson.M{
+        "$inc": incMap,
+        "$set": updateMap,
+    })
+}
+
 {{else}}
-type {{$Name}} struct { {{range $Model.Fields}}
-    {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}},omitempty" json:"{{.Name|SnakeString}}"`{{end}}
+type {{$Name}} struct { {{range $Model.Fields}}{{if not .Anonymous}}
+    {{.Name}} {{.Type}} `bson:"{{.Name|SnakeString}}" json:"{{.Name|SnakeString}},omitempty"{{if .Valid}} valid:"{{.Valid}}"{{end}}` {{ else }}
+    {{.Type}} {{end}}{{end}}
 }
 {{end}}{{end}}
 

@@ -27,6 +27,6 @@ type Index struct {
 type Field struct {
 	Name   string `yaml:"name,omitempty"`
 	Type   string `yaml:"type,omitempty"`
-	Unique bool   `yaml:"unique,omitempty"`
 	Valid  string `yaml:"valid,omitempty"`
+	Anonymous bool `yaml:"anonymous,omitempty"`
 }

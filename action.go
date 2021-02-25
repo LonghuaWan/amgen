@@ -1,7 +1,6 @@
 package amgen
 
 import (
-	"fmt"
 	"gopkg.in/urfave/cli.v2"
 	"html/template"
 	"io/ioutil"
@@ -49,7 +48,7 @@ func MgoAction(context *cli.Context) error {
 					 return err
 				 }
 
-				 filename := strings.Replace(configPath, path.Ext(configPath), ".mg.go", 1)
+				 filename := strings.Replace(onefile.Name(), path.Ext(onefile.Name()), ".mg.go", 1)
 				 mg.FileName = filename
 				 fp, err := os.Create(filename)
 				 if err != nil {
