@@ -13,4 +13,4 @@ require (
 	gopkg.in/urfave/cli.v2 v2.0.0-20180128182452-d3ae77c26ac8
 	gopkg.in/yaml.v2 v2.2.2
 )
-replace github.com/chxfantasy/cmgen => github.com/cage1993/amgen
+replace github.com/chxfantasy/cmgen v0.0.1 => github.com/cage1993/amgen v0.0.1
